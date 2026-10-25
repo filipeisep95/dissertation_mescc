@@ -1,0 +1,172 @@
+\chapter{Conclusions and Future Work}
+
+\label{chap:Chapter7}
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+This dissertation investigated an incremental approach for migrating selected low-level Boost functionality from C++ to Rust while preserving interoperability with existing C++ software. The work treated migration as an architectural and semantic transformation rather than as a direct source translation. Two case studies, \texttt{Boost.Align} and \texttt{Boost.Endian}, were implemented using different interoperability strategies so that the methodology could be evaluated under different compatibility constraints.
+
+The study demonstrates that selected functionality from both libraries can be expressed using Rust-native abstractions while retaining a usable C++ integration boundary. The implementations also show that the appropriate FFI mechanism depends on the compatibility requirements of the component: the Align implementation uses a small C-compatible interface because the target use case retains C++03 compatibility, whereas the Endian implementation uses the \texttt{cxx} bridge.
+
+The evaluation provides quantitative evidence for the selected workloads. In the Boost.Align end-to-end benchmark, the Rust implementation measured 20.7014~ms per iteration compared with 21.6782~ms for the Boost implementation, corresponding to approximately 4.7\% lower measured execution time. The same experiment reported a larger RSS increase during allocation for the Rust implementation, so the results do not support a general claim of reduced memory consumption. In the Boost.Endian benchmark, Rust through the \texttt{cxx} bridge measured lower execution time than the manual C++ byte-manipulation baseline at all four tested input sizes, with a reported average speedup of approximately 35\%. Because that baseline is not the original Boost.Endian implementation, the result should not be interpreted as evidence that Rust is generally faster than Boost.Endian.
+
+The central conclusion is therefore methodological: successful incremental migration depends on identifying observable semantics, selecting an appropriate Rust abstraction, defining an explicit interoperability contract, isolating unsafe operations, and validating each migrated component with evidence appropriate to the property being claimed. The two case studies demonstrate these patterns without establishing that every Boost component, particularly highly template-dependent components, can be migrated using the same implementation choices.
+
+\section{Answers to the Research Questions}
+\label{sec:answers_research_questions}
+
+\subsection{RQ1 -- Architectural and interoperability patterns}
+
+The implementation identifies several reusable patterns: semantic rather than syntactic translation, explicit ownership and lifetime contracts, small FFI surfaces, isolation of unsafe operations, compatibility-driven FFI selection, and validation against observable behaviour. These patterns are implemented in different forms for Align and Endian rather than through a single universal binding mechanism.
+
+\subsection{RQ2 -- Component-selection criteria}
+
+The methodology defines selection criteria covering automotive relevance, safety relevance, isolation capability, interoperability constraints, portability, performance relevance, implementation complexity, and the potential to expose reusable migration patterns. These criteria provide a traceable basis for selecting case studies rather than selecting components solely because they are easy to translate.
+
+\subsection{RQ3 -- Rust reimplementation while preserving behaviour}
+
+The two case studies demonstrate that selected Boost functionality can be re-expressed using Rust-native abstractions while preserving the tested observable behaviour. The implementations do not reproduce the complete Boost APIs or their internal C++ structures. Consequently, the evidence supports semantic reproduction of the selected functionality rather than complete API equivalence.
+
+\subsection{RQ4 -- FFI boundary design}
+
+The implementations show two compatible approaches. Boost.Align uses a small C-compatible boundary suitable for C++03 consumers, while Boost.Endian uses \texttt{cxx}. In both cases, interface design requires explicit reasoning about representation, ownership, lifetime, valid inputs, and error or panic behaviour. The appropriate mechanism is therefore determined by the compatibility requirements of the component rather than selected independently of them.
+
+\subsection{RQ5 -- Observed performance characteristics}
+
+The evaluated workloads show competitive measured execution times for the Rust implementations. Boost.Align measured approximately 4.7\% lower execution time in the selected end-to-end AVX workload, while Boost.Endian measured approximately 35\% lower execution time than the manual C++ baseline across the tested sizes. These are workload-specific measurements and do not establish universal performance differences. In particular, the Align implementations did not use identical implementation details in every aspect, and the Endian baseline was not the original Boost.Endian implementation.
+
+\subsection{RQ6 -- Safety guarantees and FFI contracts}
+
+Within safe Rust, ownership, borrowing, bounds, and representation invariants can be expressed and checked by the language and type system. At the FFI boundary, these guarantees become dependent on interface contracts and foreign-code behaviour. The caller must respect requirements concerning pointer validity, buffer length, alignment, lifetime, aliasing, and data layout. The migration therefore reduces the manually managed safety surface inside the Rust component but does not remove the need for verification of the hybrid boundary.
+
+\section{Contributions}
+\label{sec:contributions}
+
+The dissertation contributes a structured component-selection framework, a migration methodology, two complementary low-level case studies, an analysis of generalizable versus library-specific migration decisions, and an experimental evaluation of correctness, performance, memory observations, and FFI overhead. It also makes explicit the distinction between properties enforced by Rust internally and properties that remain contracts across FFI.
+
+\section{Limitations}
+\label{sec:limitations}
+
+The work is limited to selected functionality from two Boost libraries and therefore does not establish complete migration of either library or the feasibility of migrating the entire Boost ecosystem. The experiments were conducted on a limited set of workloads and hardware configurations. The performance measurements characterize observed execution time and throughput but do not establish worst-case execution time, jitter, schedulability, or hard real-time guarantees. The memory measurements are process-level RSS observations rather than a complete allocator or memory-efficiency analysis.
+
+The safety discussion likewise should not be interpreted as a certification argument. The dissertation identifies where Rust's static guarantees apply and where explicit FFI contracts remain necessary, but it does not provide a complete ISO~26262 safety case, formal proof, or certification assessment of the resulting software.
+
+Finally, the Endian performance comparison uses a manual C++ byte-manipulation baseline rather than a direct Boost.Endian implementation. The Align benchmark also contains implementation differences that limit the interpretation of the measured performance difference. These limitations are considered explicitly when drawing conclusions from the results.
+
+\section{Future Work}
+\label{sec:future_work}
+
+The work presented in this dissertation establishes a migration methodology and
+two implemented case studies, but it also identifies several directions for
+further development. These directions are deliberately limited to gaps that
+affect the completeness, robustness, or external validation of the current
+results. They should be understood as extensions of the present work, rather
+than as requirements for the conclusions reached in this dissertation.
+
+\subsection{Implementation Completion}
+
+For \texttt{Boost.Align}, the most relevant next steps are to generalise the
+current aligned-buffer abstraction, reduce the amount of low-level pointer
+handling exposed by the implementation, and improve the separation between
+generic aligned storage and the SIMD-specific processing demonstrated in the
+case study. Additional supported data types and explicit handling of runtime
+SIMD capabilities could also make the implementation applicable to a wider
+range of workloads.
+
+For \texttt{Boost.Endian}, the main implementation gap is API coverage.
+Future work should consolidate the experimental implementation variants into
+one canonical implementation and extend support for the non-standard integer
+widths and buffer representations provided by Boost.Endian. The C++ interface
+should also be expanded where required, with an explicit distinction between
+the Rust API and the subset exposed through FFI.
+
+\subsection{Stronger Validation}
+
+The current experiments provide quantitative evidence for the selected
+workloads, but broader validation would improve the external validity of the
+results. In particular, future experiments should:
+
+\begin{itemize}
+    \item compare against the original Boost.Endian implementation in
+    addition to the manual C++ baseline;
+    \item use equivalent operations and compiler settings for the C++ and Rust
+    Align implementations;
+    \item repeat measurements across additional hardware and toolchain
+    configurations;
+    \item report statistical variation in addition to average execution time;
+    \item separate the cost of FFI calls from the cost of the underlying
+    operation by processing buffers in larger batches; and
+    \item validate binary layout, alignment and endian representations
+    systematically through automated tests.
+\end{itemize}
+
+Cross-architecture testing would be particularly relevant for Endian because
+the implementation must distinguish external byte representation from the
+native representation of the host. Similarly, Align should be evaluated on
+architectures and SIMD configurations beyond the environment used for the
+current benchmark.
+
+These experiments would strengthen the evidence for portability and
+performance characteristics without changing the scope of the present
+conclusions.
+
+\subsection{FFI and Integration Refinement}
+
+The evaluation identified several improvements to the interoperability
+interfaces. FFI functions should preferably report invalid input through
+explicit error representations rather than relying on assertions or panic
+behaviour. Ownership, lifetime, buffer length, alignment and representation
+requirements should remain documented as part of each interface contract.
+
+For performance-sensitive applications, buffer-oriented FFI should also be
+preferred over repeated per-element calls where practical. A single call
+processing a complete buffer would make the interface overhead easier to
+measure and reduce the number of boundary crossings.
+
+Finally, the Rust and C++ interfaces should be tested as a complete
+integration rather than only through isolated examples. This includes
+compiler compatibility, build integration, ABI assumptions and regression
+tests for the observable behaviour used by existing C++ consumers.
+
+\subsection{Automotive-Oriented Validation}
+
+A natural continuation is to evaluate the migrated components in
+representative automotive-oriented workloads, such as sensor processing,
+binary protocol parsing, serialization, communication buffers, or other
+low-level data-processing paths. Eclipse S-CORE provides a relevant
+architectural context for this type of investigation because it targets
+modern automotive software architectures in which incremental coexistence of
+C++ and Rust components can be relevant.
+
+Such an evaluation should focus on integration characteristics rather than
+assuming that the results of the present microbenchmarks transfer directly
+to a complete automotive system. In particular, system-level experiments
+could examine build integration, resource usage, interface frequency and the
+interaction of the migrated component with its surrounding software.
+
+\subsection{Extension to Additional Boost Components}
+
+The most important longer-term research direction is to apply the migration
+criteria and patterns identified in this dissertation to additional Boost
+components, especially components with substantially greater template
+complexity. Such work would test whether the patterns identified here remain
+useful when the amount of generic C++ structure and dependency coupling
+increases.
+
+The selected case studies should therefore be viewed as a foundation for
+further investigation rather than as evidence that the same implementation
+strategy applies unchanged to every Boost library. Future studies can use the
+selection criteria and the distinction between general migration patterns and
+library-specific decisions established in this dissertation to determine
+which additional components are suitable candidates.
+
+\subsection{Summary}
+
+In summary, future work is concentrated in four areas: completing and
+stabilising the selected implementations, strengthening experimental
+validation, refining the FFI and automotive integration boundaries, and
+applying the methodology to additional Boost components. These extensions
+would broaden the evidence obtained in this dissertation while preserving
+its central scope: investigating an incremental and evidence-based approach
+to migrating selected low-level Boost functionality from C++ to Rust.
